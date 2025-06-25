@@ -70,7 +70,7 @@ MarketPlace-Management/
      const connection = mysql.createConnection({
        host: 'localhost',
        user: 'root',
-       password: '2580',
+       password: 'your_database_password',
        database: 'your_database_name'
      });
      ```
