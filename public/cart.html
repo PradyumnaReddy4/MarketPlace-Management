@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Cart - Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Checkout Modal Styles */
+        .checkout-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .checkout-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .checkout-modal-content h2 {
+            margin-top: 0;
+            color: #333;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        .checkout-modal-content button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .checkout-modal-content button[type="submit"]:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Marketplace</h1>
+        <div>
+            <button onclick="window.location.href='/'">Home</button>
+            <button onclick="window.location.href='/products.html'">Back to Products</button>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+
+    <div class="cart-container">
+        <h1>Your Cart</h1>
+        <div class="cart-list" id="cart-list"></div>
+        <div class="cart-total">
+            <h3>Total: ₹<span id="total-price">0.00</span></h3>
+            <button id="checkout-btn">Checkout</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 Marketplace. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const token = localStorage.getItem('token');
+        let userId, role;
+
+        if (token) {
+            try {
+                const decoded = JSON.parse(atob(token.split('.')[1]));
+                userId = decoded.id;
+                role = decoded.role;
+                if (role !== 'buyer') {
+                    alert('Only buyers can view the cart.');
+                    window.location.href = '/products.html';
+                }
+            } catch (error) {
+                console.error('Error decoding token:', error);
+                alert('Invalid token. Please login again.');
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        } else {
+            alert('Please login first');
+            window.location.href = '/login.html';
+        }
+
+        async function fetchCartItems() {
+            try {
+                const response = await fetch(`http://localhost:5000/cart`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const cartItems = await response.json();
+
+                const cartList = document.getElementById('cart-list');
+                const totalPriceElement = document.getElementById('total-price');
+
+                cartList.innerHTML = '';
+                let totalPrice = 0;
+
+                cartItems.forEach(item => {
+                    const product = item.Product;
+                    const cartItem = document.createElement('div');
+                    cartItem.className = 'cart-item';
+                    cartItem.innerHTML = `
+                        <img src="${product.image || '/images/placeholder.jpg'}" alt="${product.name}">
+                        <div class="cart-item-details">
+                            <h3>${product.name}</h3>
+                            <p>₹${product.price.toFixed(2)} x ${item.quantity}</p>
+                            <button onclick="removeFromCart('${item.id}')">Remove</button>
+                        </div>
+                    `;
+                    cartList.appendChild(cartItem);
+                    totalPrice += product.price * item.quantity;
+                });
+
+                totalPriceElement.textContent = totalPrice.toFixed(2);
+            } catch (error) {
+                console.error('Error fetching cart items:', error);
+                alert('Failed to fetch cart items');
+            }
+        }
+
+        async function removeFromCart(cartItemId) {
+            try {
+                const response = await fetch(`http://localhost:5000/cart/${cartItemId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to remove item from cart');
+                }
+
+                const data = await response.json();
+                alert(data.message);
+                fetchCartItems();
+            } catch (error) {
+                console.error('Error removing item from cart:', error);
+                alert('Failed to remove item from cart');
+            }
+        }
+
+        document.getElementById('checkout-btn').addEventListener('click', () => {
+            const checkoutModal = document.createElement('div');
+            checkoutModal.className = 'checkout-modal';
+            checkoutModal.innerHTML = `
+                <div class="checkout-modal-content">
+                    <h2>Checkout</h2>
+                    <form id="checkout-form">
+                        <div class="form-group">
+                            <label for="shipping-address">Shipping Address</label>
+                            <textarea id="shipping-address" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="payment-method">Payment Method</label>
+                            <select id="payment-method" required>
+                                <option value="">Select Payment Method</option>
+                                <option value="upi">UPI</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="net_banking">Net Banking</option>
+                            </select>
+                        </div>
+                        <div id="payment-details"></div>
+                        <button type="submit">Place Order</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(checkoutModal);
+
+            // Handle payment method change
+            document.getElementById('payment-method').addEventListener('change', (e) => {
+                const paymentDetails = document.getElementById('payment-details');
+                if (e.target.value === 'upi') {
+                    paymentDetails.innerHTML = `
+                        <div class="form-group">
+                            <label>UPI QR Code</label>
+                            <img src="/images/payment-qr.png" alt="UPI QR Code" style="width: 200px; display: block; margin: 10px auto;">
+                            <p>Scan this QR code to complete payment</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="transaction-id">Transaction ID</label>
+                            <input type="text" id="transaction-id" required placeholder="Enter UPI Transaction ID">
+                        </div>
+                    `;
+                } else {
+                    paymentDetails.innerHTML = `
+                        <div class="form-group">
+                            <label for="card-number">Card Number</label>
+                            <input type="text" id="card-number" required placeholder="Enter card number">
+                        </div>
+                        <div class="form-group">
+                            <label for="card-expiry">Expiry Date</label>
+                            <input type="text" id="card-expiry" required placeholder="MM/YY">
+                        </div>
+                        <div class="form-group">
+                            <label for="card-cvv">CVV</label>
+                            <input type="text" id="card-cvv" required placeholder="CVV">
+                        </div>
+                    `;
+                }
+            });
+
+            // Handle form submission
+            document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const address = document.getElementById('shipping-address').value;
+                const paymentMethod = document.getElementById('payment-method').value;
+                let transactionId = '';
+
+                if (paymentMethod === 'upi') {
+                    transactionId = document.getElementById('transaction-id').value;
+                } else {
+                    // For other methods, generate a fake transaction ID
+                    transactionId = `txn_${Date.now()}`;
+                }
+
+                try {
+                    const response = await fetch('http://localhost:5000/checkout', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            address,
+                            payment_method: paymentMethod,
+                            transaction_id: transactionId
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Checkout failed');
+                    }
+
+                    alert('Order placed successfully!');
+                    document.body.removeChild(checkoutModal);
+                    window.location.href = '/customer-orders.html';
+                } catch (error) {
+                    console.error('Checkout error:', error);
+                    alert('Checkout failed: ' + error.message);
+                }
+            });
+
+            // Close modal when clicking outside
+            checkoutModal.addEventListener('click', (e) => {
+                if (e.target === checkoutModal) {
+                    document.body.removeChild(checkoutModal);
+                }
+            });
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        });
+
+        fetchCartItems();
+    </script>
+</body>
+</html>

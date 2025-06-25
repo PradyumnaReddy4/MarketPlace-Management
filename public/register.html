@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Marketplace</h1>
+    </header>
+
+    <div class="form-container">
+        <h2>Sign Up</h2>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <div class="role-selection">
+            <label><input type="checkbox" id="role-buyer" value="buyer"> Buyer</label>
+            <label><input type="checkbox" id="role-seller" value="seller"> Seller</label>
+        </div>
+        <button onclick="register()">Sign Up</button>
+        <div class="link">
+            Already have an account? <a href="/login.html">Login</a>
+        </div>
+        <div id="signupMessage"></div>
+    </div>
+
+    <footer>
+        <p>© 2025 Marketplace. All rights reserved.</p>
+    </footer>
+
+    <script>
+        async function register() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const roleBuyer = document.getElementById('role-buyer').checked;
+            const roleSeller = document.getElementById('role-seller').checked;
+
+            if (!username || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (!roleBuyer && !roleSeller) {
+                alert('Please select at least one role');
+                return;
+            }
+
+            const roles = [];
+            if (roleBuyer) roles.push('buyer');
+            if (roleSeller) roles.push('seller');
+
+            try {
+                const response = await fetch('http://localhost:5000/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password, role: roles })
+                });
+
+                const data = await response.json();
+                document.getElementById('signupMessage').textContent = data.message;
+
+                if (response.ok) {
+                    setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('Registration failed');
+            }
+        }
+    </script>
+</body>
+</html>

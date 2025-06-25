@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Marketplace</h1>
+        <div>
+            <button onclick="window.location.href='/'">Home</button>
+            <button onclick="window.location.href='/register.html'">Register</button>
+        </div>
+    </header>
+
+    <div class="login-container">
+        <h2>Login</h2>
+        <form onsubmit="login(event)">
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <select id="role" required>
+                <option value="" disabled selected>Select Role</option>
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+            </select>
+            <button type="submit">Login</button>
+        </form>
+        <div id="login-message"></div>
+    </div>
+
+    <footer>
+        <p>© 2025 Marketplace. All rights reserved.</p>
+    </footer>
+
+    <script>
+        async function login(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+            const messageEl = document.getElementById('login-message');
+
+            try {
+                const response = await fetch('http://localhost:5000/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, role })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Login failed');
+                }
+
+                // Store token and user data
+                localStorage.setItem('token', data.data.token);
+                localStorage.setItem('user', JSON.stringify(data.data.user));
+                
+                // Redirect based on role
+                if (role === 'buyer') {
+                    window.location.href = '/products.html';
+                } else {
+                    window.location.href = '/seller-dashboard.html';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                messageEl.textContent = error.message;
+                messageEl.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>

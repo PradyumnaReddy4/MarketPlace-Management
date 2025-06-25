@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Marketplace</h1>
+        <div>
+            <button onclick="window.location.href='/'">Home</button>
+            <button onclick="window.location.href='/customer-orders.html'">My Orders</button>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+
+    <div class="confirmation-container">
+        <div class="confirmation-card">
+            <h2>Order Confirmed!</h2>
+            <img src="/images/order-confirmed.png" alt="Order Confirmed" class="confirmation-image">
+            <p>Your order has been placed successfully.</p>
+            <p>Order ID: <span id="order-id"></span></p>
+            <p>We've sent a confirmation to your email.</p>
+            <button onclick="window.location.href='/orders.html'">View Orders</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 Marketplace. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Display order ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('order_id');
+        if (orderId) {
+            document.getElementById('order-id').textContent = orderId;
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        });
+    </script>
+</body>
+</html>

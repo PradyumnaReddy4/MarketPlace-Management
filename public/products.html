@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products - Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Marketplace</h1>
+        <div>
+            <button onclick="window.location.href='/'">Home</button>
+            <button onclick="window.location.href='/cart.html'">Cart</button>
+            <button onclick="window.location.href='/customer-orders.html'">My Orders</button>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+
+    <div class="products-container">
+        <h1>Mobiles & Accessories</h1>
+        <div class="product-list" id="product-list"></div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal" style="display:none; position:fixed; bottom:20px; right:20px; width:300px; height:400px; background:#fff; border:1px solid #ddd; border-radius:5px; padding:10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);">
+        <h3>Chat with Seller</h3>
+        <div id="chat-messages" style="height:300px; overflow-y:auto;"></div>
+        <input type="text" id="chat-input" placeholder="Type a message..." style="width:100%; padding: 8px; margin-top: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="closeChat()">Close</button>
+    </div>
+
+    <footer>
+        <p>© 2025 Marketplace. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const token = localStorage.getItem('token');
+        let userId, role;
+
+        if (token) {
+            try {
+                const decoded = JSON.parse(atob(token.split('.')[1]));
+                userId = decoded.id;
+                role = decoded.role; // "buyer" or "seller"
+            } catch (error) {
+                console.error('Error decoding token:', error);
+                alert('Invalid token. Please login again.');
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        } else {
+            alert('Please login first');
+            window.location.href = '/login.html';
+        }
+
+        async function fetchProducts() {
+    try {
+        const response = await fetch('http://localhost:5000/products', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const products = await response.json();
+
+        const productList = document.getElementById('product-list');
+        productList.innerHTML = '';
+
+        products.forEach(product => {
+            const productCard = document.createElement('div');
+            productCard.className = 'product-card';
+            productCard.innerHTML = `
+                <img src="${product.image || '/images/placeholder.jpg'}" alt="${product.name}">
+                <h3>${product.name}</h3>
+                <p class="price">₹${product.price.toFixed(2)}</p>
+                ${role === 'buyer' ? `
+                    <div class="button-group">
+                        <button class="add-to-cart-btn" onclick="addToCart('${product.id}')">Add to Cart</button>
+                        <button class="chat-btn" onclick="openChat('${product.seller_id}', '${product.id}')">Chat with Seller</button>
+                    </div>
+                ` : role === 'seller' && product.seller_id === userId ? `
+                    <button class="remove-btn" onclick="removeProduct('${product.id}')">Remove Product</button>
+                ` : ''}
+            `;
+            productList.appendChild(productCard);
+        });
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        alert('Failed to fetch products');
+    }
+}
+async function addToCart(productId) {
+    try {
+        const response = await fetch('http://localhost:5000/cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ productId, quantity: 1 })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Failed to add to cart: ${errorData.message || response.statusText}`);
+        }
+
+        alert('Product added to cart');
+    } catch (error) {
+        console.error('Error adding to cart:', error);
+        alert('Failed to add to cart: ' + error.message);
+    }
+}
+
+        async function removeProduct(productId) {
+            if (!token || role !== 'seller') {
+                alert('Only sellers can remove products.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5000/products/${productId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                alert(data.message);
+                if (response.ok) fetchProducts();
+            } catch (error) {
+                console.error('Error removing product:', error);
+                alert('Failed to remove product');
+            }
+        }
+
+        let currentSellerId, currentProductId;
+
+        function openChat(sellerId, productId) {
+            if (role !== 'buyer') {
+                alert('Only buyers can chat with sellers.');
+                return;
+            }
+            currentSellerId = sellerId;
+            currentProductId = productId;
+            document.getElementById('chat-modal').style.display = 'block';
+            fetchMessages();
+        }
+
+        function closeChat() {
+            document.getElementById('chat-modal').style.display = 'none';
+        }
+
+        async function fetchMessages() {
+            try {
+                const response = await fetch(`http://localhost:5000/chat/${userId}/${currentSellerId}/${currentProductId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to fetch messages');
+                const messages = await response.json();
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.innerHTML = messages.map(msg => 
+                    `<p><b>${msg.sender_id === userId ? 'You' : 'Seller'}:</b> ${msg.message}</p>`
+                ).join('');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+                alert('Failed to load chat messages');
+            }
+        }
+
+        async function sendMessage() {
+            const message = document.getElementById('chat-input').value;
+            if (!message) return;
+
+            try {
+                const response = await fetch('http://localhost:5000/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        sender_id: userId, 
+                        receiver_id: currentSellerId, 
+                        product_id: currentProductId, 
+                        message 
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to send message');
+                document.getElementById('chat-input').value = '';
+                fetchMessages();
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Failed to send message');
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        });
+
+        if (userId) fetchProducts();
+    </script>
+</body>
+</html>
